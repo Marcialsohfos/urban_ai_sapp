@@ -2,6 +2,9 @@ __pycache__/
 *.pyc
 .env
 venv/
+*.log
+.DS_Store
 data/uploads/
 temp/
-*.log
+.vercel/
+vercel.json
