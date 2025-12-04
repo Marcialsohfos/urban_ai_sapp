@@ -1,32 +1,20 @@
-#!/usr/bin/env python3
-"""
-Script de configuration pour Urban AI avec structure data/uploads/
-"""
+from setuptools import setup, find_packages
 
-import os
-import sys
-import shutil
-
-def setup_project():
-    print("="*60)
-    print("🔧 CONFIGURATION URBAN AI - STRUCTURE OPTIMISÉE")
-    print("="*60)
-    
-    # 1. Créer la structure data/uploads/
-    folders = [
-        'models',
-        'data',                    # Dossier data principal
-        'data/uploads',           # Uploads DANS data/
-        'data/uploads/troncons',  # Images tronçons
-        'data/uploads/taudis',    # Images taudis
-        'static/css',
-        'static/js',
-        'static/images',
-        'templates',
-        'temp'
+setup(
+    name="urban-ai_sapp",
+    version="1.0.0",
+    packages=find_packages(),
+    install_requires=[
+        'Flask==2.3.3',
+        'gunicorn==21.2.0',
+        'Werkzeug==2.3.7',
+        'numpy==1.24.3',
+        'pandas==1.5.3',
+        'openpyxl==3.1.2',
+        'scikit-learn==1.3.0',
+        'joblib==1.3.1',
+        'Pillow==10.0.0',
+        'python-dotenv==1.0.0',
+        'pyyaml==6.0'
     ]
-    
-    for folder in folders:
-        os.makedirs(folder, exist_ok=True)
-        print(f"✅ Dossier créé: {folder}")
-    
+)
