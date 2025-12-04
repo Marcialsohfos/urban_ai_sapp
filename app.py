@@ -1,4 +1,25 @@
+#!/usr/bin/env python3
+"""
+Urban AI - Déploiement Vercel
+Application complète de gestion des données urbaines avec IA
+"""
+
+import sys
 import os
+
+# ==================== CONFIGURATION SPÉCIALE VERCEL ====================
+IS_VERCEL = os.environ.get('VERCEL') == '1'
+
+# Ajoutez le chemin du projet à sys.path
+if IS_VERCEL:
+    # Sur Vercel, on travaille dans /tmp
+    sys.path.insert(0, '/tmp')
+    print("🚀 Mode Vercel détecté - Configuration spéciale activée")
+else:
+    # Mode local
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# ==================== IMPORT STANDARD ====================
 import secrets
 from flask import Flask, jsonify, request, send_from_directory, render_template, session, redirect, url_for
 from flask_cors import CORS
@@ -10,8 +31,9 @@ import hashlib
 import numpy as np
 import math
 from pathlib import Path
+from functools import wraps
 
-# ==================== CONFIGURATION VERCEL ====================
+# ==================== CONFIGURATION ====================
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -35,28 +57,47 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=3600,
 )
 
-CORS(app)
+CORS(app, resources={
+    r"/api/*": {"origins": "*"},
+    r"/static/*": {"origins": "*"},
+    r"/*": {"origins": "*"}
+})
 
 # ==================== CHEMINS VERCEL ====================
-BASE_DIR = Path(__file__).parent.absolute()
-
-# Utilisation de /tmp pour les uploads sur Vercel (seul dossier accessible en écriture)
-if os.environ.get('VERCEL'):
-    DATA_DIR = Path('/tmp/data')
-    UPLOAD_FOLDER = Path('/tmp/data/uploads')
+if IS_VERCEL:
+    # Sur Vercel, on utilise /tmp (seul dossier accessible en écriture)
+    BASE_DIR = Path('/tmp/urban_ai')
+    DATA_DIR = BASE_DIR / 'data'
+    UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
+    
+    # Création récursive des dossiers
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+    
+    logger.info(f"📁 Vercel: BASE_DIR = {BASE_DIR}")
+    logger.info(f"📁 Vercel: DATA_DIR = {DATA_DIR}")
 else:
+    # Développement local
+    BASE_DIR = Path(__file__).parent.absolute()
     DATA_DIR = BASE_DIR / 'data'
     UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
 
 EXCEL_PATH = DATA_DIR / 'indicateurs_urbains.xlsx'
 app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER)
 
-# Création des dossiers
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
+# Création des sous-dossiers
 (UPLOAD_FOLDER / 'troncons').mkdir(exist_ok=True)
 (UPLOAD_FOLDER / 'taudis').mkdir(exist_ok=True)
+(BASE_DIR / 'temp').mkdir(exist_ok=True)
 
+logger.info(f"✅ Dossiers créés:")
+logger.info(f"  - EXCEL_PATH: {EXCEL_PATH}")
+logger.info(f"  - UPLOAD_FOLDER: {UPLOAD_FOLDER}")
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # ==================== AUTHENTIFICATION ====================
 def check_password(password):
@@ -66,8 +107,6 @@ def check_password(password):
 
 def login_required(f):
     """Décorateur pour les routes protégées"""
-    from functools import wraps
-    
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get('logged_in'):
@@ -729,16 +768,16 @@ def data_info():
     """Informations sur les données"""
     info = {
         'structure': {
-            'data_dir': DATA_DIR,
-            'excel_file': EXCEL_PATH,
+            'data_dir': str(DATA_DIR),
+            'excel_file': str(EXCEL_PATH),
             'excel_exists': os.path.exists(EXCEL_PATH),
-            'uploads_dir': UPLOAD_FOLDER,
-            'troncons_dir': os.path.join(UPLOAD_FOLDER, 'troncons'),
-            'taudis_dir': os.path.join(UPLOAD_FOLDER, 'taudis'),
+            'uploads_dir': str(UPLOAD_FOLDER),
+            'troncons_dir': str(UPLOAD_FOLDER / 'troncons'),
+            'taudis_dir': str(UPLOAD_FOLDER / 'taudis'),
         },
         'statistiques': {
-            'nombre_images_troncons': len(os.listdir(os.path.join(UPLOAD_FOLDER, 'troncons'))),
-            'nombre_images_taudis': len(os.listdir(os.path.join(UPLOAD_FOLDER, 'taudis'))),
+            'nombre_images_troncons': len(os.listdir(UPLOAD_FOLDER / 'troncons')),
+            'nombre_images_taudis': len(os.listdir(UPLOAD_FOLDER / 'taudis')),
         }
     }
     
@@ -750,7 +789,9 @@ def health():
     return jsonify({
         'status': 'healthy',
         'ia_available': IA_MODELS_AVAILABLE,
-        'data_loaded': len(indicateurs_manager.df) > 0
+        'data_loaded': len(indicateurs_manager.df) > 0,
+        'vercel': IS_VERCEL,
+        'data_dir': str(DATA_DIR)
     })
 
 @app.route('/static/<path:filename>')
@@ -758,7 +799,11 @@ def serve_static(filename):
     """Fichiers statiques"""
     return send_from_directory(app.static_folder, filename)
 
-# ==================== DÉMARRAGE ====================
+# ==================== HANDLER VERCEL ====================
+# Vercel a besoin d'une variable `app` exportée
+application = app
+
+# ==================== DÉMARRAGE LOCAL ====================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))
     
