@@ -11,11 +11,13 @@
       "destination": "/api/app.py"
     }
   ],
+  "builds": [
+    {
+      "src": "api/app.py",
+      "use": "@vercel/python"
+    }
+  ],
   "buildCommand": "bash build.sh",
-  "installCommand": "pip install --upgrade pip && pip install -r requirements.txt",
   "outputDirectory": ".",
-  "framework": "flask",
-  "env": {
-    "PYTHON_VERSION": "3.9"
-  }
+  "framework": null
 }
