@@ -1,0 +1,1097 @@
+<!---- Bienvenue dans le laboratoire d'habitat précaire et des données des opérations Urbaines ----!>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indicateurs Urbains - Cameroun</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Styles de base */
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .header {
+            background: linear-gradient(135deg, #005c97, #363795);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            border: none;
+        }
+        .card-header {
+            background-color: #005c97;
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+        }
+        
+        /* Styles galerie d'images */
+        .image-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .image-card {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .image-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .image-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        .no-image {
+            background-color: #f8f9fa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #6c757d;
+            font-size: 14px;
+            height: 150px;
+        }
+        
+        .upload-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        /* Styles pour l'IA */
+        .ai-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-left: 5px solid #4e54c8;
+        }
+        
+        .priority-badge {
+            font-size: 0.9rem;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+        
+        .priority-0 { background-color: #28a745; color: white; }
+        .priority-1 { background-color: #ffc107; color: black; }
+        .priority-2 { background-color: #fd7e14; color: white; }
+        .priority-3 { background-color: #dc3545; color: white; }
+        
+        .ai-analysis-results {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        /* Animation pour les résultats IA */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .ai-result-item {
+            animation: fadeIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="header text-center">
+        <div class="container">
+            <h1 class="display-4">Indicateurs Urbains des Communes</h1>
+            <p class="lead">Visualisation des données des villes de Douala et Yaoundé</p>
+            <small class="text-light">Intégration d'Intelligence Artificielle pour l'optimisation urbaine</small>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Section de sélection -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-map-marker-alt"></i> Sélectionnez une ville et une commune
+                        </h5>
+                        <div>
+                            <button id="exportBtn" class="btn btn-sm btn-success d-none me-2">
+                                <i class="fas fa-download"></i> Exporter
+                            </button>
+                            <button id="aiStatusBtn" class="btn btn-sm btn-info" onclick="checkAIStatus()">
+                                <i class="fas fa-robot"></i> État IA
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-5">
+                                <div class="mb-3">
+                                    <label for="villeSelect" class="form-label">Ville</label>
+                                    <select class="form-select" id="villeSelect">
+                                        <option value="">Sélectionnez une ville</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="mb-3">
+                                    <label for="communeSelect" class="form-label">Commune</label>
+                                    <select class="form-select" id="communeSelect" disabled>
+                                        <option value="">Sélectionnez d'abord une ville</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button id="resetBtn" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-redo"></i> Réinitialiser
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Indicateurs de chargement et erreurs -->
+        <div id="loading" class="d-none text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Chargement...</span>
+            </div>
+            <p class="mt-2">Chargement des données...</p>
+        </div>
+
+        <div id="errorContainer" class="alert alert-danger d-none" role="alert">
+            <strong>Erreur!</strong> <span id="errorMessage"></span>
+        </div>
+
+        <!-- Conteneur principal des indicateurs -->
+        <div id="indicatorsContainer" class="d-none">
+            
+            <!-- Section IA - Dashboard -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card ai-card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-robot"></i> Intelligence Artificielle - Analyse et Recommandations
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="aiDashboard">
+                                <div class="row mb-4">
+                                    <div class="col-md-4">
+                                        <div class="card text-center h-100">
+                                            <div class="card-body">
+                                                <h1 id="aiPriorityScore" class="display-4">--</h1>
+                                                <p class="text-muted">Score de Priorité IA</p>
+                                                <small class="text-info">0-100 (plus haut = plus urgent)</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="d-grid gap-2">
+                                            <button class="btn btn-success btn-lg" onclick="getAIRecommendations()">
+                                                <i class="fas fa-magic"></i> Générer des recommandations IA
+                                            </button>
+                                            <button class="btn btn-outline-primary" onclick="analyzeAllImages()">
+                                                <i class="fas fa-search"></i> Analyser toutes les images avec IA
+                                            </button>
+                                        </div>
+                                        <div class="mt-3" id="aiStatusMessage"></div>
+                                    </div>
+                                </div>
+                                <div id="aiRecommendations"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Statistiques IA -->
+            <div class="row mt-4" id="aiStatsSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-bar"></i> Statistiques IA
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row" id="aiStatsContent">
+                                <!-- Rempli dynamiquement -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Galerie d'images - Tronçons -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-images"></i> Galerie des tronçons de voirie
+                            </h5>
+                            <button class="btn btn-sm btn-outline-info" onclick="enableImageAnalysis()">
+                                <i class="fas fa-search"></i> Activer l'analyse IA
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="tronconsGallery" class="image-gallery">
+                                <!-- Rempli dynamiquement -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Galerie d'images - Taudis -->
+            <div class="row mt-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-house-damage"></i> Galerie des quartiers de taudis
+                            </h5>
+                            <button class="btn btn-sm btn-outline-info" onclick="enableImageAnalysis()">
+                                <i class="fas fa-search"></i> Activer l'analyse IA
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div id="taudisGallery" class="image-gallery">
+                                <!-- Rempli dynamiquement -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Section Tronçons avec Prédictions IA -->
+            <div class="row mt-4" id="aiPredictionsSection" style="display: none;">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-exclamation-triangle"></i> Prédictions IA - Priorités de Maintenance
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="aiPredictionsTable">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Tronçon</th>
+                                            <th>Classe</th>
+                                            <th>Linéaire (m)</th>
+                                            <th>Priorité IA</th>
+                                            <th>Confiance</th>
+                                            <th>Recommandation</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="aiPredictionsBody">
+                                        <!-- Rempli dynamiquement -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal pour images normales -->
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="imageModalLabel">Visualisation de l'image</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" class="img-fluid" alt="" style="max-height: 70vh;">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" onclick="analyzeCurrentImage()">
+                        <i class="fas fa-robot"></i> Analyser avec IA
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour l'analyse d'image IA -->
+    <div class="modal fade" id="aiImageModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Analyse IA de l'image</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <img id="aiAnalyzeImage" src="" class="img-fluid rounded" alt="">
+                        </div>
+                        <div class="col-md-6">
+                            <div id="aiAnalysisResults"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal État IA -->
+    <div class="modal fade" id="aiStatusModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">État du Système d'IA</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="aiStatusContent">
+                        <div class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Chargement...</span>
+                            </div>
+                            <p>Vérification de l'état de l'IA...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        //==================== CONFIGURATION =====================
+        function getApiBaseUrl() {
+            const host = window.location.hostname;
+            
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return 'http://127.0.0.1:5000/api';  // Développement local
+            } else {
+                return '/.netlify/functions/api';    // Production Netlify
+            }
+        }
+
+        function getImageBaseUrl() {
+            const host = window.location.hostname;
+            
+            if (host === 'localhost' || host === '127.0.0.1') {
+                return 'http://127.0.0.1:5000/images';  // Développement local
+            } else {
+                return 'https://lab-app-donnees-opurbaines.onrender.com/images'; // Production
+            }
+        }
+
+        const API_BASE_URL = getApiBaseUrl();
+        const IMAGE_BASE_URL = getImageBaseUrl();
+        let currentIndicateurs = null;
+        let currentImageAnalysisMode = false;
+
+        console.log('🌐 Configuration API:', {
+            environnement: window.location.hostname === 'localhost' ? 'Développement' : 'Production',
+            apiUrl: API_BASE_URL,
+            imageUrl: IMAGE_BASE_URL
+        });
+
+        // SVG pour image manquante
+        const noImageSVG = `data:image/svg+xml;base64,${btoa(`
+            <svg width="200" height="150" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100%" height="100%" fill="#f8f9fa"/>
+                <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" 
+                      fill="#6c757d" font-family="Arial" font-size="14">
+                    Image non disponible
+                </text>
+            </svg>
+        `)}`;
+
+        //==================== FONCTIONS PRINCIPALES =====================
+        function createImageCard(imageName, title, imageType, description, extraInfo = '') {
+            const card = document.createElement('div');
+            card.className = 'image-card ai-result-item';
+            
+            const imageUrl = imageName && imageName.trim() !== '' 
+                ? `${IMAGE_BASE_URL}/${imageType}/${encodeURIComponent(imageName)}`
+                : noImageSVG;
+
+            const hasImage = imageName && imageName.trim() !== '';
+            
+            card.innerHTML = `
+                <div class="card h-100">
+                    <div style="height: 150px; overflow: hidden; cursor: pointer;" 
+                         onclick="${hasImage ? `openModal('${imageUrl}', '${title.replace(/'/g, "\\'")}')` : ''}">
+                        <img src="${imageUrl}" class="card-img-top" alt="${title}" 
+                             style="width: 100%; height: 100%; object-fit: ${hasImage ? 'cover' : 'contain'};"
+                             onerror="this.src='${noImageSVG}'">
+                        ${extraInfo ? `<div class="position-absolute top-0 end-0 m-2">${extraInfo}</div>` : ''}
+                    </div>
+                    <div class="card-body">
+                        <h6 class="card-title">${title}</h6>
+                        <small class="text-muted">${description}</small>
+                        ${hasImage && currentImageAnalysisMode ? `
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-primary w-100" 
+                                        onclick="analyzeImageAI('${imageUrl}', '${title.replace(/'/g, "\\'")}', '${imageType}')">
+                                    <i class="fas fa-robot"></i> Analyser IA
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function displayTronconsImages(troncons) {
+            const gallery = document.getElementById('tronconsGallery');
+            gallery.innerHTML = '';
+
+            troncons.forEach(troncon => {
+                const description = `Linéaire: ${troncon.lineaire_ml}m | Classe: ${troncon.classe}`;
+                const priorityBadge = troncon.prediction_ia ? 
+                    `<span class="badge priority-${troncon.prediction_ia.niveau}">${troncon.prediction_ia.label}</span>` : '';
+                
+                const imageCard = createImageCard(
+                    troncon.image, 
+                    troncon.nom, 
+                    'troncons', 
+                    description,
+                    priorityBadge
+                );
+                gallery.appendChild(imageCard);
+            });
+
+            if (troncons.length === 0) {
+                gallery.innerHTML = '<p class="text-muted">Aucune image disponible</p>';
+            }
+        }
+
+        function displayTaudisImages(taudis) {
+            const gallery = document.getElementById('taudisGallery');
+            gallery.innerHTML = '';
+
+            taudis.forEach(quartier => {
+                const description = `Superficie: ${quartier.superficie_m2}m²`;
+                const imageCard = createImageCard(
+                    quartier.image, 
+                    quartier.nom, 
+                    'taudis', 
+                    description
+                );
+                gallery.appendChild(imageCard);
+            });
+
+            if (taudis.length === 0) {
+                gallery.innerHTML = '<p class="text-muted">Aucune image disponible</p>';
+            }
+        }
+
+        function displayImages(indicateurs) {
+            currentIndicateurs = indicateurs;
+            displayTronconsImages(indicateurs.troncons_voirie);
+            displayTaudisImages(indicateurs.quartiers_taudis);
+        }
+
+        function openModal(imageUrl, title) {
+            if (imageUrl === noImageSVG) return;
+            
+            document.getElementById('modalImage').src = imageUrl;
+            document.getElementById('modalImage').dataset.title = title;
+            document.getElementById('modalImage').dataset.url = imageUrl;
+            document.getElementById('imageModalLabel').textContent = title;
+            new bootstrap.Modal(document.getElementById('imageModal')).show();
+        }
+
+        //==================== FONCTIONS IA =====================
+        async function checkAIStatus() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/ai/status`);
+                const data = await response.json();
+                
+                const modal = new bootstrap.Modal(document.getElementById('aiStatusModal'));
+                const content = document.getElementById('aiStatusContent');
+                
+                if (data.ia_disponible) {
+                    content.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5><i class="fas fa-check-circle"></i> Système IA Opérationnel</h5>
+                            <p>L'intelligence artificielle est activée et fonctionnelle.</p>
+                        </div>
+                        <div class="mt-3">
+                            <h6>Modules disponibles :</h6>
+                            <ul class="list-group">
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Maintenance prédictive</span>
+                                    <span class="badge bg-success">Actif</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Analyse d'images</span>
+                                    <span class="badge bg-success">Actif</span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between">
+                                    <span>Optimisation des ressources</span>
+                                    <span class="badge bg-success">Actif</span>
+                                </li>
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    content.innerHTML = `
+                        <div class="alert alert-warning">
+                            <h5><i class="fas fa-exclamation-triangle"></i> Mode Simulation</h5>
+                            <p>L'IA fonctionne en mode simulation avec des données factices.</p>
+                            <small>Les résultats sont démonstratifs mais montrent le potentiel du système.</small>
+                        </div>
+                    `;
+                }
+                
+                modal.show();
+            } catch (error) {
+                console.error('Erreur vérification IA:', error);
+                showError('Impossible de vérifier l\'état de l\'IA');
+            }
+        }
+
+        async function getAIRecommendations() {
+            const commune = document.getElementById('communeSelect').value;
+            if (!commune) {
+                alert('Veuillez sélectionner une commune');
+                return;
+            }
+
+            document.getElementById('aiStatusMessage').innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-cog fa-spin"></i> Génération des recommandations IA...
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/ai/predict-maintenance?commune=${encodeURIComponent(commune)}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                displayAIRecommendations(data);
+                updateAIPriorityScore(data);
+                displayAIPredictions(data);
+                showAIStats(data);
+                
+                document.getElementById('aiStatusMessage').innerHTML = `
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i> Recommandations IA générées avec succès
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Erreur IA:', error);
+                document.getElementById('aiStatusMessage').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i> Erreur: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function displayAIRecommendations(data) {
+            const container = document.getElementById('aiRecommendations');
+            
+            let html = `
+                <div class="alert alert-info ai-result-item">
+                    <h5><i class="fas fa-robot"></i> Analyse IA pour ${data.commune}</h5>
+                    <p><strong>${data.troncons_avec_predictions.length}</strong> tronçons analysés</p>
+                </div>`;
+            
+            // Optimisation de l'éclairage
+            if (data.optimisation_eclairage && data.optimisation_eclairage.length > 0) {
+                html += `
+                    <div class="ai-result-item">
+                        <h6><i class="fas fa-lightbulb"></i> Optimisation de l'éclairage</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Groupe</th>
+                                        <th>Tronçons</th>
+                                        <th>Éclairage actuel</th>
+                                        <th>Recommandé</th>
+                                        <th>Économie potentielle</th>
+                                    </tr>
+                                </thead>
+                                <tbody>`;
+                
+                data.optimisation_eclairage.forEach(opt => {
+                    const economyClass = opt.economie_potentielle > 0 ? 'text-success' : 'text-danger';
+                    html += `
+                        <tr>
+                            <td><span class="badge bg-secondary">Groupe ${opt.cluster}</span></td>
+                            <td>${opt.troncons}</td>
+                            <td>${opt.eclairage_actuel_moyen.toFixed(1)} points</td>
+                            <td>${opt.eclairage_recommande} points</td>
+                            <td class="${economyClass} fw-bold">
+                                ${opt.economie_potentielle > 0 ? '+' : ''}${opt.economie_potentielle.toFixed(1)} points
+                            </td>
+                        </tr>`;
+                });
+                
+                html += `</tbody></table></div></div>`;
+            }
+            
+            // Tronçons urgents
+            if (data.recommandations_globales && data.recommandations_globales.troncons_urgents.length > 0) {
+                html += `
+                    <div class="alert alert-warning ai-result-item mt-3">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Tronçons nécessitant une attention immédiate</h6>
+                        <ul class="mb-0">`;
+                
+                data.recommandations_globales.troncons_urgents.forEach(t => {
+                    html += `
+                        <li>
+                            <strong>${t.nom}</strong> - 
+                            Priorité: <span class="badge priority-${t.prediction_ia.niveau}">${t.prediction_ia.label}</span> -
+                            Confiance: ${(t.prediction_ia.probabilite * 100).toFixed(1)}%
+                        </li>`;
+                });
+                
+                html += `</ul>`;
+                
+                if (data.recommandations_globales.budget_estime > 0) {
+                    html += `
+                        <p class="mt-2 mb-0">
+                            <strong>Budget estimé:</strong> ${data.recommandations_globales.budget_estime.toLocaleString()} FCFA
+                        </p>`;
+                }
+                
+                html += `</div>`;
+            }
+            
+            container.innerHTML = html;
+        }
+
+        function updateAIPriorityScore(data) {
+            const scoreElement = document.getElementById('aiPriorityScore');
+            
+            if (data.recommandations_globales && data.recommandations_globales.troncons_urgents.length > 0) {
+                // Calcul d'un score basé sur la priorité moyenne
+                const avgPriority = data.recommandations_globales.priorite_max * 25;
+                scoreElement.textContent = Math.min(100, avgPriority + 20);
+                scoreElement.className = avgPriority > 50 ? 'display-4 text-danger' : 'display-4 text-warning';
+            } else {
+                scoreElement.textContent = '25';
+                scoreElement.className = 'display-4 text-success';
+            }
+        }
+
+        function displayAIPredictions(data) {
+            const section = document.getElementById('aiPredictionsSection');
+            const tableBody = document.getElementById('aiPredictionsBody');
+            
+            tableBody.innerHTML = '';
+            
+            data.troncons_avec_predictions.forEach(troncon => {
+                const row = document.createElement('tr');
+                row.className = 'ai-result-item';
+                
+                row.innerHTML = `
+                    <td>${troncon.nom}</td>
+                    <td><span class="badge bg-info">${troncon.classe}</span></td>
+                    <td>${troncon.lineaire_ml.toLocaleString()} m</td>
+                    <td>
+                        <span class="badge priority-${troncon.prediction_ia.niveau}">
+                            ${troncon.prediction_ia.label}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar ${getPriorityColor(troncon.prediction_ia.niveau)}" 
+                                 role="progressbar" 
+                                 style="width: ${troncon.prediction_ia.probabilite * 100}%">
+                                ${(troncon.prediction_ia.probabilite * 100).toFixed(1)}%
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        ${getRecommendation(troncon.prediction_ia.niveau, troncon.lineaire_ml)}
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            section.style.display = 'block';
+        }
+
+        function showAIStats(data) {
+            const section = document.getElementById('aiStatsSection');
+            const content = document.getElementById('aiStatsContent');
+            
+            let html = '';
+            
+            // Statistiques de base
+            html += `
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">${data.troncons_avec_predictions.length}</h3>
+                            <p class="text-muted">Tronçons analysés</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="${data.recommandations_globales.priorite_max >= 2 ? 'text-danger' : 'text-warning'}">
+                                ${data.recommandations_globales.priorite_max}
+                            </h3>
+                            <p class="text-muted">Niveau de priorité max</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-success">${data.recommandations_globales.troncons_urgents.length}</h3>
+                            <p class="text-muted">Tronçons urgents</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-info">${Math.round(data.recommandations_globales.budget_estime / 1000)}K</h3>
+                            <p class="text-muted">Budget estimé (FCFA)</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            content.innerHTML = html;
+            section.style.display = 'block';
+        }
+
+        async function analyzeImageAI(imageUrl, imageName, imageType) {
+            // Téléchargement de l'image pour analyse
+            try {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                
+                const formData = new FormData();
+                formData.append('file', blob, imageName);
+                formData.append('type', 'defect');
+                
+                const aiResponse = await fetch(`${API_BASE_URL}/ai/analyze-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await aiResponse.json();
+                
+                // Affichage des résultats
+                const modal = document.getElementById('aiImageModal');
+                const modalImage = document.getElementById('aiAnalyzeImage');
+                const resultsDiv = document.getElementById('aiAnalysisResults');
+                
+                modalImage.src = imageUrl;
+                
+                let resultsHTML = `
+                    <div class="card">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">Résultats de l'analyse IA</h5>
+                        </div>
+                        <div class="card-body">
+                            <h6>État détecté: 
+                                <span class="badge ${result.etat === 'bon_etat' ? 'bg-success' : 'bg-danger'}">
+                                    ${result.etat.replace('_', ' ').toUpperCase()}
+                                </span>
+                            </h6>
+                            <p>Confiance: <strong>${(result.confiance * 100).toFixed(1)}%</strong></p>
+                            
+                            <h6 class="mt-3">Distribution des probabilités:</h6>
+                            <div class="list-group">`;
+                
+                Object.entries(result.details).forEach(([key, value]) => {
+                    const percentage = (value * 100).toFixed(1);
+                    resultsHTML += `
+                        <div class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>${key.replace('_', ' ')}</span>
+                            <div class="d-flex align-items-center">
+                                <div class="progress me-2" style="width: 100px; height: 10px;">
+                                    <div class="progress-bar" role="progressbar" 
+                                         style="width: ${percentage}%"></div>
+                                </div>
+                                <span class="badge bg-primary rounded-pill">${percentage}%</span>
+                            </div>
+                        </div>`;
+                });
+                
+                resultsHTML += `
+                            </div>
+                            
+                            <div class="mt-3">
+                                <h6>Recommandation:</h6>
+                                <div class="alert ${result.etat === 'bon_etat' ? 'alert-success' : 'alert-warning'}">
+                                    ${getImageRecommendation(result.etat)}
+                                </div>
+                            </div>
+                        </div>
+                    </div>`;
+                
+                resultsDiv.innerHTML = resultsHTML;
+                new bootstrap.Modal(modal).show();
+            } catch (error) {
+                console.error('Erreur analyse IA:', error);
+                alert('Impossible d\'analyser l\'image avec l\'IA');
+            }
+        }
+
+        function analyzeCurrentImage() {
+            const modalImage = document.getElementById('modalImage');
+            const imageUrl = modalImage.dataset.url;
+            const title = modalImage.dataset.title;
+            
+            if (imageUrl && imageUrl !== noImageSVG) {
+                // Fermer la modal normale
+                bootstrap.Modal.getInstance(document.getElementById('imageModal')).hide();
+                
+                // Ouvrir l'analyse IA
+                analyzeImageAI(imageUrl, title, 'troncons');
+            }
+        }
+
+        function enableImageAnalysis() {
+            currentImageAnalysisMode = !currentImageAnalysisMode;
+            
+            if (currentImageAnalysisMode) {
+                alert('Mode analyse IA activé! Cliquez sur "Analyser IA" sous chaque image.');
+                // Re-afficher les images avec les boutons d'analyse
+                if (currentIndicateurs) {
+                    displayImages(currentIndicateurs);
+                }
+            } else {
+                if (currentIndicateurs) {
+                    displayImages(currentIndicateurs);
+                }
+            }
+        }
+
+        async function analyzeAllImages() {
+            if (!currentIndicateurs) {
+                alert('Veuillez d\'abord charger les données d\'une commune');
+                return;
+            }
+            
+            alert('Cette fonctionnalité analyserait toutes les images disponibles. En développement...');
+            // Implémentation future: analyser toutes les images en batch
+        }
+
+        function getPriorityColor(priority) {
+            switch(priority) {
+                case 0: return 'bg-success';
+                case 1: return 'bg-warning';
+                case 2: return 'bg-orange';
+                case 3: return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+        }
+
+        function getRecommendation(priority, length) {
+            switch(priority) {
+                case 0: return 'Maintenance programmée';
+                case 1: return 'Inspection dans 6 mois';
+                case 2: return 'Intervention dans 1 mois';
+                case 3: return 'Intervention immédiate';
+                default: return 'À évaluer';
+            }
+        }
+
+        function getImageRecommendation(etat) {
+            switch(etat) {
+                case 'bon_etat': return '✅ Aucune action nécessaire. Maintenance préventive recommandée.';
+                case 'nids_poule': return '⚠️ Nids de poule détectés. Réparation urgente recommandée.';
+                case 'fissures': return '⚠️ Fissures détectées. Inspection approfondie nécessaire.';
+                case 'deformation': return '🚨 Déformation de la chaussée. Intervention immédiate requise.';
+                default: return '❓ Analyse incomplète. Nouvelle analyse recommandée.';
+            }
+        }
+
+        //==================== GESTION DES DONNÉES =====================
+        function loadVilles() {
+            fetch(`${API_BASE_URL}/villes`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Erreur réseau');
+                    return res.json();
+                })
+                .then(villes => {
+                    const villeSelect = document.getElementById('villeSelect');
+                    villeSelect.innerHTML = '<option value="">Sélectionnez une ville</option>';
+
+                    villes.forEach(ville => {
+                        const option = document.createElement('option');
+                        option.value = ville;
+                        option.textContent = ville;
+                        villeSelect.appendChild(option);
+                    });
+
+                    const communeSelect = document.getElementById('communeSelect');
+                    communeSelect.innerHTML = '<option value="">Sélectionnez d\'abord une ville</option>';
+                    communeSelect.disabled = true;
+                })
+                .catch(err => {
+                    console.error('Erreur lors du chargement des villes:', err);
+                    showError('Impossible de charger la liste des villes');
+                });
+        }
+
+        function showError(message) {
+            const errorContainer = document.getElementById('errorContainer');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('d-none');
+        }
+
+        function hideError() {
+            document.getElementById('errorContainer').classList.add('d-none');
+        }
+
+        //==================== INITIALISATION =====================
+        document.addEventListener('DOMContentLoaded', function() {
+            loadVilles();
+
+            // Charger les communes quand la ville change
+            document.getElementById('villeSelect').addEventListener('change', function () {
+                const selectedVille = this.value;
+                const communeSelect = document.getElementById('communeSelect');
+
+                if (!selectedVille) {
+                    communeSelect.innerHTML = '<option value="">Sélectionnez d\'abord une ville</option>';
+                    communeSelect.disabled = true;
+                    return;
+                }
+
+                fetch(`${API_BASE_URL}/communes?ville=${encodeURIComponent(selectedVille)}`)
+                    .then(res => {
+                        if (!res.ok) throw new Error('Erreur réseau');
+                        return res.json();
+                    })
+                    .then(communes => {
+                        communeSelect.innerHTML = '<option value="">Sélectionnez une commune</option>';
+                        
+                        communes.forEach(commune => {
+                            const option = document.createElement('option');
+                            option.textContent = commune.replace('Yaounde', 'Yaoundé');
+                            option.value = commune;
+                            communeSelect.appendChild(option);
+                        });
+                        
+                        communeSelect.disabled = false;
+                    })
+                    .catch(err => {
+                        console.error('Erreur lors du chargement des communes:', err);
+                        communeSelect.innerHTML = '<option value="">Erreur de chargement</option>';
+                        communeSelect.disabled = true;
+                    });
+            });
+
+            // Charger les indicateurs quand la commune change
+            document.getElementById('communeSelect').addEventListener('change', function () {
+                const commune = this.value;
+                
+                console.log('🔍 Commune envoyée à l\'API:', commune);
+
+                if (!commune) return;
+
+                document.getElementById('loading').classList.remove('d-none');
+                document.getElementById('indicatorsContainer').classList.add('d-none');
+                hideError();
+
+                fetch(`${API_BASE_URL}/indicateurs?commune=${encodeURIComponent(commune)}`)
+                    .then(res => {
+                        if (!res.ok) {
+                            if (res.status === 404) {
+                                throw new Error('Commune non trouvée');
+                            }
+                            throw new Error('Erreur serveur: ' + res.status);
+                        }
+                        return res.json();
+                    })
+                    .then(data => {
+                        document.getElementById('loading').classList.add('d-none');
+                        
+                        if (data.error) {
+                            throw new Error(data.error);
+                        }
+                        
+                        displayImages(data);
+                        document.getElementById('indicatorsContainer').classList.remove('d-none');
+                        
+                        // Réinitialiser les sections IA
+                        document.getElementById('aiPredictionsSection').style.display = 'none';
+                        document.getElementById('aiStatsSection').style.display = 'none';
+                        document.getElementById('aiPriorityScore').textContent = '--';
+                        document.getElementById('aiRecommendations').innerHTML = '';
+                        document.getElementById('aiStatusMessage').innerHTML = '';
+                    })
+                    .catch(err => {
+                        document.getElementById('loading').classList.add('d-none');
+                        console.error('Erreur détaillée:', err);
+                        showError('Impossible de charger les indicateurs pour ' + commune + ' : ' + err.message);
+                    });
+            });
+
+            // Réinitialisation
+            document.getElementById('resetBtn').addEventListener('click', function () {
+                document.getElementById('villeSelect').value = '';
+                document.getElementById('communeSelect').innerHTML = '<option value="">Sélectionnez d\'abord une ville</option>';
+                document.getElementById('communeSelect').disabled = true;
+                document.getElementById('indicatorsContainer').classList.add('d-none');
+                hideError();
+                currentIndicateurs = null;
+                
+                // Réinitialiser IA
+                document.getElementById('aiPredictionsSection').style.display = 'none';
+                document.getElementById('aiStatsSection').style.display = 'none';
+                document.getElementById('aiPriorityScore').textContent = '--';
+                document.getElementById('aiRecommendations').innerHTML = '';
+                document.getElementById('aiStatusMessage').innerHTML = '';
+            });
+
+            // Test de connexion initial
+            console.log('🔗 Test de connexion en cours...');
+            fetch(`${API_BASE_URL}/health`)
+                .then(response => {
+                    console.log('📡 Statut HTTP:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ Réponse du backend:', data);
+                })
+                .catch(error => {
+                    console.error('❌ Erreur de connexion:', error);
+                });
+        });
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
