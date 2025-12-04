@@ -1,0 +1,23 @@
+# Core
+Flask==2.3.3
+gunicorn==21.2.0
+Werkzeug==2.3.7
+
+# Data & ML - versions stables avec binaires
+numpy==1.24.3
+pandas==2.0.3  # Version plus stable avec binaires
+scikit-learn==1.3.0
+opencv-python-headless==4.8.0.74  # Version headless pour Render
+Pillow==10.0.0
+matplotlib==3.7.2
+seaborn==0.12.2
+plotly==5.15.0
+
+# XGBoost version légère
+xgboost==1.7.6
+
+# Utilitaires
+python-dotenv==1.0.0
+joblib==1.3.1
+pyyaml==6.0
+openpyxl==3.1.2

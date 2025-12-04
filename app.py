@@ -1,23 +1,36 @@
 #!/usr/bin/env python3
 """
-Urban AI - Déploiement Vercel
+Urban AI - Déploiement Render
 Application complète de gestion des données urbaines avec IA
 """
 
 import sys
 import os
 
-# ==================== CONFIGURATION SPÉCIALE VERCEL ====================
-IS_VERCEL = os.environ.get('VERCEL') == '1'
+# ==================== CONFIGURATION ====================
+# Détermine si nous sommes sur Render
+IS_RENDER = 'RENDER' in os.environ
 
-# Ajoutez le chemin du projet à sys.path
-if IS_VERCEL:
-    # Sur Vercel, on travaille dans /tmp
-    sys.path.insert(0, '/tmp')
-    print("🚀 Mode Vercel détecté - Configuration spéciale activée")
+# Configuration des chemins
+if IS_RENDER:
+    # Sur Render, les données persistantes sont dans /opt/render/project/src
+    BASE_DIR = Path('/opt/render/project/src')
+    print("🚀 Mode Render détecté - Stockage persistant activé")
 else:
-    # Mode local
-    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    # Mode développement local
+    BASE_DIR = Path(__file__).parent.absolute()
+
+# Chemins des dossiers
+DATA_DIR = BASE_DIR / 'data'
+UPLOAD_FOLDER = DATA_DIR / 'uploads'
+TEMP_DIR = BASE_DIR / 'temp'
+MODELS_DIR = BASE_DIR / 'models'
+STATIC_DIR = BASE_DIR / 'static'
+TEMPLATES_DIR = BASE_DIR / 'templates'
+
+# Ajoutez les chemins à sys.path
+sys.path.insert(0, str(BASE_DIR))
+sys.path.insert(0, str(MODELS_DIR))
 
 # ==================== IMPORT STANDARD ====================
 import secrets
@@ -33,7 +46,7 @@ import math
 from pathlib import Path
 from functools import wraps
 
-# ==================== CONFIGURATION ====================
+# ==================== CONFIGURATION FLASK ====================
 logging.basicConfig(
     level=logging.INFO, 
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -42,10 +55,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__, 
-            static_folder='static',
-            template_folder='templates')
+            static_folder=str(STATIC_DIR),
+            template_folder=str(TEMPLATES_DIR))
 
-# Configuration pour Vercel
+# Configuration
 app.config.update(
     SECRET_KEY=os.environ.get('SECRET_KEY', secrets.token_hex(32)),
     PASSWORD_HASH=os.environ.get('PASSWORD_HASH', 
@@ -63,29 +76,34 @@ CORS(app, resources={
     r"/*": {"origins": "*"}
 })
 
-# ==================== DÉTECTION RENDER ====================
-IS_RENDER = 'RENDER' in os.environ
-
-if IS_RENDER:
-    # Sur Render, on utilise le chemin absolu
-    BASE_DIR = Path(__file__).parent.absolute()
-    DATA_DIR = BASE_DIR / 'data'
-    UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
-    print("🚀 Mode Render détecté - Stockage persistant activé")
-else:
-    # Développement local
-    BASE_DIR = Path(__file__).parent.absolute()
-    DATA_DIR = BASE_DIR / 'data'
-    UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
-
+# Chemin du fichier Excel
 EXCEL_PATH = DATA_DIR / 'indicateurs_urbains.xlsx'
 app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER)
 
-# Création des dossiers
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
-(UPLOAD_FOLDER / 'troncons').mkdir(exist_ok=True)
-(UPLOAD_FOLDER / 'taudis').mkdir(exist_ok=True)
+# ==================== CRÉATION DES DOSSIERS ====================
+def create_directories():
+    """Crée tous les dossiers nécessaires"""
+    directories = [
+        DATA_DIR,
+        UPLOAD_FOLDER,
+        TEMP_DIR,
+        MODELS_DIR,
+        STATIC_DIR,
+        TEMPLATES_DIR,
+        UPLOAD_FOLDER / 'troncons',
+        UPLOAD_FOLDER / 'taudis',
+    ]
+    
+    for directory in directories:
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            logger.info(f"📁 Dossier créé/vérifié: {directory}")
+        except Exception as e:
+            logger.error(f"❌ Erreur création dossier {directory}: {e}")
+
+# Création des dossiers au démarrage
+create_directories()
+
 # ==================== AUTHENTIFICATION ====================
 def check_password(password):
     """Vérifie le mot de passe"""
@@ -526,6 +544,12 @@ defect_detector = RoadDefectDetector()
 resource_optimizer = UrbanResourceOptimizer()
 IA_MODELS_AVAILABLE = True
 
+# ==================== UTILITAIRE FICHIERS ====================
+def allowed_file(filename):
+    """Vérifie l'extension du fichier"""
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'}
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 # ==================== ROUTES ====================
 @app.route('/')
 @login_required
@@ -540,10 +564,8 @@ def serve_image(image_type, filename):
         return jsonify({'error': 'Type invalide'}), 400
     
     try:
-        return send_from_directory(
-            os.path.join(app.config['UPLOAD_FOLDER'], image_type),
-            filename
-        )
+        image_path = UPLOAD_FOLDER / image_type
+        return send_from_directory(str(image_path), filename)
     except FileNotFoundError:
         return jsonify({'error': 'Image non trouvée'}), 404
 
@@ -562,16 +584,20 @@ def upload_image():
     
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
-        save_path = os.path.join(app.config['UPLOAD_FOLDER'], image_type, filename)
-        file.save(save_path)
+        save_path = UPLOAD_FOLDER / image_type / filename
         
-        logger.info(f"✅ Image sauvegardée: {save_path}")
-        return jsonify({
-            'message': 'Image uploadée avec succès',
-            'filename': filename
-        })
+        try:
+            file.save(str(save_path))
+            logger.info(f"✅ Image sauvegardée: {save_path}")
+            return jsonify({
+                'message': 'Image uploadée avec succès',
+                'filename': filename
+            })
+        except Exception as e:
+            logger.error(f"❌ Erreur sauvegarde image: {e}")
+            return jsonify({'error': f'Erreur sauvegarde: {str(e)}'}), 500
     
-    return jsonify({'error': 'Type non autorisé'}), 400
+    return jsonify({'error': 'Type de fichier non autorisé'}), 400
 
 @app.route('/api/villes', methods=['GET'])
 @login_required
@@ -627,25 +653,25 @@ def analyze_image_ai():
     file = request.files['file']
     analysis_type = request.form.get('type', 'defect')
     
-    temp_path = os.path.join(BASE_DIR, 'temp', secure_filename(file.filename))
-    os.makedirs(os.path.join(BASE_DIR, 'temp'), exist_ok=True)
+    temp_path = TEMP_DIR / secure_filename(file.filename)
     
     try:
-        file.save(temp_path)
+        file.save(str(temp_path))
         
         if analysis_type == 'defect':
-            result = defect_detector.analyze_road_image(temp_path)
+            result = defect_detector.analyze_road_image(str(temp_path))
         else:
-            os.remove(temp_path)
+            if temp_path.exists():
+                temp_path.unlink()
             return jsonify({'error': 'Type non supporté'}), 400
         
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if temp_path.exists():
+            temp_path.unlink()
         
         return jsonify(result)
     except Exception as e:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if temp_path.exists():
+            temp_path.unlink()
         logger.error(f"Erreur analyse IA: {e}")
         return jsonify({'error': f'Erreur analyse: {str(e)}'}), 500
 
@@ -763,8 +789,8 @@ def data_info():
             'taudis_dir': str(UPLOAD_FOLDER / 'taudis'),
         },
         'statistiques': {
-            'nombre_images_troncons': len(os.listdir(UPLOAD_FOLDER / 'troncons')),
-            'nombre_images_taudis': len(os.listdir(UPLOAD_FOLDER / 'taudis')),
+            'nombre_images_troncons': len(list((UPLOAD_FOLDER / 'troncons').glob('*'))),
+            'nombre_images_taudis': len(list((UPLOAD_FOLDER / 'taudis').glob('*'))),
         }
     }
     
@@ -777,8 +803,9 @@ def health():
         'status': 'healthy',
         'ia_available': IA_MODELS_AVAILABLE,
         'data_loaded': len(indicateurs_manager.df) > 0,
-        'vercel': IS_VERCEL,
-        'data_dir': str(DATA_DIR)
+        'render': IS_RENDER,
+        'data_dir': str(DATA_DIR),
+        'base_dir': str(BASE_DIR)
     })
 
 @app.route('/static/<path:filename>')
@@ -786,22 +813,20 @@ def serve_static(filename):
     """Fichiers statiques"""
     return send_from_directory(app.static_folder, filename)
 
-# ==================== HANDLER VERCEL ====================
-# Vercel a besoin d'une variable `app` exportée
-application = app
-
-# ==================== DÉMARRAGE LOCAL ====================
+# ==================== DÉMARRAGE ====================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 7860))
     
     print("\n" + "="*60)
     print("🏙️  URBAN AI - GESTION DES INFRASTRUCTURES URBAINES")
     print("="*60)
+    print(f"📁 Dossier base: {BASE_DIR}")
     print(f"📁 Dossier data: {DATA_DIR}")
     print(f"📊 Données: {len(indicateurs_manager.df)} lignes")
     print(f"🤖 IA: {'✅ Active' if IA_MODELS_AVAILABLE else '⚠️ Simulation'}")
     print(f"🔒 Authentification: Activée (urbankit@1001a)")
+    print(f"🌐 Environnement: {'Render' if IS_RENDER else 'Local'}")
     print(f"🔗 URL: http://localhost:{port}")
     print("="*60 + "\n")
     
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=not IS_RENDER)
