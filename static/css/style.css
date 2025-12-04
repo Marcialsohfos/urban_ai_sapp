@@ -1,0 +1,102 @@
+
+### **G. `static/css/style.css` - Styles de Base**
+
+```css
+/* Urban AI - Styles de base */
+:root {
+    --primary-color: #005c97;
+    --secondary-color: #363795;
+    --accent-color: #4CAF50;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f8f9fa;
+}
+
+/* Header */
+.urban-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+/* Cartes */
+.urban-card {
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    border: none;
+    transition: transform 0.3s;
+}
+
+.urban-card:hover {
+    transform: translateY(-5px);
+}
+
+.urban-card-header {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: 10px 10px 0 0 !important;
+    padding: 1rem 1.5rem;
+}
+
+/* Galerie d'images */
+.image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.image-card {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s;
+}
+
+.image-card:hover {
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+/* Badges de priorité */
+.priority-badge {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.priority-low { background-color: #28a745; color: white; }
+.priority-medium { background-color: #ffc107; color: black; }
+.priority-high { background-color: #fd7e14; color: white; }
+.priority-critical { background-color: #dc3545; color: white; }
+
+/* Loader */
+.urban-loader {
+    border: 5px solid #f3f3f3;
+    border-top: 5px solid var(--primary-color);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .image-gallery {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+    
+    .urban-header h1 {
+        font-size: 1.8rem;
+    }
+}
