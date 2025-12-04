@@ -63,19 +63,15 @@ CORS(app, resources={
     r"/*": {"origins": "*"}
 })
 
-# ==================== CHEMINS VERCEL ====================
-if IS_VERCEL:
-    # Sur Vercel, on utilise /tmp (seul dossier accessible en écriture)
-    BASE_DIR = Path('/tmp/urban_ai')
+# ==================== DÉTECTION RENDER ====================
+IS_RENDER = 'RENDER' in os.environ
+
+if IS_RENDER:
+    # Sur Render, on utilise le chemin absolu
+    BASE_DIR = Path(__file__).parent.absolute()
     DATA_DIR = BASE_DIR / 'data'
     UPLOAD_FOLDER = BASE_DIR / 'data' / 'uploads'
-    
-    # Création récursive des dossiers
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
-    
-    logger.info(f"📁 Vercel: BASE_DIR = {BASE_DIR}")
-    logger.info(f"📁 Vercel: DATA_DIR = {DATA_DIR}")
+    print("🚀 Mode Render détecté - Stockage persistant activé")
 else:
     # Développement local
     BASE_DIR = Path(__file__).parent.absolute()
@@ -85,20 +81,11 @@ else:
 EXCEL_PATH = DATA_DIR / 'indicateurs_urbains.xlsx'
 app.config['UPLOAD_FOLDER'] = str(UPLOAD_FOLDER)
 
-# Création des sous-dossiers
+# Création des dossiers
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 (UPLOAD_FOLDER / 'troncons').mkdir(exist_ok=True)
 (UPLOAD_FOLDER / 'taudis').mkdir(exist_ok=True)
-(BASE_DIR / 'temp').mkdir(exist_ok=True)
-
-logger.info(f"✅ Dossiers créés:")
-logger.info(f"  - EXCEL_PATH: {EXCEL_PATH}")
-logger.info(f"  - UPLOAD_FOLDER: {UPLOAD_FOLDER}")
-
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 # ==================== AUTHENTIFICATION ====================
 def check_password(password):
     """Vérifie le mot de passe"""
